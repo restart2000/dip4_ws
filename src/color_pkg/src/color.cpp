@@ -23,7 +23,8 @@ int pos_S_max=0;
 int pos_V_min=0;
 int pos_V_max=0;
 
-int HBmax = 126, HBmin = 88, HGmax = 80, HGmin = 48, HYmax = 34, HYmin = 20, HRmax = 180, HRmin = 163;
+int low_Threshold=0;
+int high_Threshold=0;
 
 
 using namespace cv;
@@ -97,9 +98,77 @@ Mat Threshold_segmentation(Mat input)
     return output;
 }
 
-void COlor_detection(Mat input)
+
+void Color_detection(Mat input)
 {
-    
+        Mat image=input.clone();
+        Mat image_gaussian;
+        Mat gray;
+        Mat binary;
+        int sigma=1;
+        GaussianBlur(image,image_gaussian,Size(0,0),sigma,0,BORDER_DEFAULT); //进行高斯滤波
+        cvtColor(image_gaussian,gray,CV_BGR2GRAY); //将高斯模糊图转化为灰度图
+        //imshow("gray",gray);
+        namedWindow("binary", WINDOW_AUTOSIZE); //创建一个窗口：binary
+        createTrackbar("low_Threshold", "binary", &low_Threshold, 255, NULL); //创建滑动条
+        createTrackbar("high_Threshold", "binary", &high_Threshold, 255, NULL); //创建滑动条
+        Canny(gray,binary,low_Threshold,high_Threshold); 
+        imshow("binary",binary);
+
+        vector<vector<Point> > contours;
+        //vector容器里面放了一个vector容器，子容器里放点
+		vector<Vec4i> hierarchy; 
+        //1、Vec4i指的是四个整形数。
+        //2、typedef Vec<int, 4> Vec4i;
+        findContours(binary,contours,hierarchy,RETR_TREE,CV_CHAIN_APPROX_NONE,Point(0, 0));
+        // findContours( InputOutputArray image, OutputArrayOfArrays contours,  
+        //                       OutputArray h, int mode,  
+        //                       int method, Point offset=Point()); 
+        //https://blog.csdn.net/laobai1015/article/details/76400725
+        Mat edge = Mat::zeros(input.rows,input.cols, CV_8UC3);
+        double TargetArea = 0;
+        findContours(binary,contours,hierarchy,RETR_TREE,CV_CHAIN_APPROX_NONE,Point(0, 0));
+        for(int i = 0; i < contours.size(); i++)
+        {
+            Rect rect = boundingRect(contours[i]);
+            if(rect.area() > 40000)
+            {
+                rectangle(edge,rect,Scalar(255),2);
+                Mat ROI=input(rect);
+                imshow("Interesting",ROI);
+                Mat HSV_Interesting=ROI.clone();
+                HSV_Interesting=RGB2HSV(ROI);
+                imshow("HSV_Interesting",HSV_Interesting);
+                int color[7]={0};
+                for(int i=0;i<HSV_Interesting.rows;i++)
+                {
+                    for(int j=0;j<HSV_Interesting.cols;j++)
+                    {
+                        int h=input.at<Vec3b>(i,j)[0];
+                            int s=input.at<Vec3b>(i,j)[1];
+                                int v=input.at<Vec3b>(i,j)[2];
+                        if(h>210 && h<255 && s>43 && s<255 && v>46 && v<255)  color[0]+=1;
+                        else if(h>11 && h<25 && s>43 && s<255 && v>46 && v<255)  color[1]+=1;
+                        else if(h>26 && h<34 && s>43 && s<255 && v>46 && v<255)  color[2]+=1;
+                        else if(h>35 && h<77 && s>43 && s<255 && v>46 && v<255)  color[3]+=1;
+                        else if(h>78 && h<99 && s>43 && s<255 && v>46 && v<255)  color[4]+=1;
+                        else if(h>100 && h<124 && s>43 && s<255 && v>46 && v<255)  color[5]+=1;
+                        else if(h>125 && h<155 && s>43 && s<255 && v>46 && v<255)  color[6]+=1;	
+
+                    }
+                }
+                cout<<"红色像素个数："<<color[0]<<endl;
+                cout<<"橙色像素个数："<<color[1]<<endl;
+                cout<<"黄色像素个数："<<color[2]<<endl;
+                cout<<"绿色像素个数："<<color[3]<<endl;
+                cout<<"青色像素个数："<<color[4]<<endl;
+                cout<<"蓝色像素个数："<<color[5]<<endl;
+                cout<<"紫色像素个数："<<color[6]<<endl;
+
+            }
+        imshow("Contours",edge);
+     }
+
 }
 
 int main(int argc, char **argv)
@@ -138,64 +207,26 @@ int main(int argc, char **argv)
         // output_1=RGB2HSV(image_1);
         // imshow("Hsv",output_1);
 
-        Mat image_2=imread("./dip4_2.jpg");
-        if(image_2.empty())
-        {
-            cout<<"can not load the image"<<endl;
-        }
-        Mat image_2_hsv=RGB2HSV(image_2);
-        imshow("00",image_2_hsv);
-        Mat output_2(image_2.rows,image_2.cols,CV_8U);
-        namedWindow("Color_Segmentation");
-        createTrackbar("H_min", "Color_Segmentation", &pos_H_min, 255 ,NULL); //创建滑动条
-        createTrackbar("H_max", "Color_Segmentation", &pos_H_max, 255 ,NULL); //创建滑动条
-        createTrackbar("S_min", "Color_Segmentation", &pos_S_min, 255 ,NULL); //创建滑动条
-        createTrackbar("S_max", "Color_Segmentation", &pos_S_max, 255 ,NULL); //创建滑动条
-        createTrackbar("V_min", "Color_Segmentation", &pos_V_min, 255 ,NULL); //创建滑动条
-        createTrackbar("V_max", "Color_Segmentation", &pos_V_max, 255 ,NULL); //创建滑动条
-        output_2=Threshold_segmentation(image_2_hsv);
-        imshow("Color_Segmentation",output_2);
+        // Mat image_2=imread("./dip4_2.jpg");
+        // if(image_2.empty())
+        // {
+        //     cout<<"can not load the image"<<endl;
+        // }
+        // Mat image_2_hsv=RGB2HSV(image_2);
+        // imshow("00",image_2_hsv);
+        // Mat output_2(image_2.rows,image_2.cols,CV_8U);
+        // namedWindow("Color_Segmentation");
+        // createTrackbar("H_min", "Color_Segmentation", &pos_H_min, 255 ,NULL); //创建滑动条
+        // createTrackbar("H_max", "Color_Segmentation", &pos_H_max, 255 ,NULL); //创建滑动条
+        // createTrackbar("S_min", "Color_Segmentation", &pos_S_min, 255 ,NULL); //创建滑动条
+        // createTrackbar("S_max", "Color_Segmentation", &pos_S_max, 255 ,NULL); //创建滑动条
+        // createTrackbar("V_min", "Color_Segmentation", &pos_V_min, 255 ,NULL); //创建滑动条
+        // createTrackbar("V_max", "Color_Segmentation", &pos_V_max, 255 ,NULL); //创建滑动条
+        // output_2=Threshold_segmentation(image_2_hsv);
+        // imshow("Color_Segmentation",output_2);
 
-
-        vector<vector<Point> > contours;
-        //vector容器里面放了一个vector容器，子容器里放点
-		vector<Vec4i> h; 
-        //1、Vec4i指的是四个整形数。
-        //2、typedef Vec<int, 4> Vec4i;
-
-        Mat thresholdimgB, thresholdimgG, thresholdimgY, thresholdimgR;
-		inRange(image_2_hsv, Scalar(HGmin, 43, 46), Scalar(HGmax, 255, 255), thresholdimgG);
-		inRange(image_2_hsv, Scalar(HYmin, 43, 46), Scalar(HYmax, 255, 255), thresholdimgY);
-		inRange(image_2_hsv, Scalar(HBmin, 43, 46), Scalar(HBmax, 255, 255), thresholdimgB);
-		inRange(image_2_hsv, Scalar(HRmin, 43, 46), Scalar(HRmax, 255, 255), thresholdimgR);
-        // void inRange(	InputArray src,
-        // 		InputArray lowerb,  
-        // 		InputArray upperb,   
-        // 		OutputArray dst);
-        // 第一个参数：输入图像
-        // 第二个参数：H、S、V的最小值，示例：Scalar(low_H, low_S, low_V)
-        // 第三个参数：H、S、V的最大值，示例：Scalar(low_H, low_S, low_V)
-        // 第四个参数：输出图像,要和输入图像有相同的尺寸且为CV_8U类
-
-        findContours(thresholdimgY, contours, h, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
-        //vector<Vec4i>  temp;
-      //  temp=minAreaRect(h);
-
-        // findContours( InputOutputArray image, OutputArrayOfArrays contours,  
-        //                       OutputArray hierarchy, int mode,  
-        //                       int method, Point offset=Point()); 
-        //https://blog.csdn.net/laobai1015/article/details/76400725
-		if (h.size() == 0) continue;
-		
-		for ( int idx = 0; idx >= 0; idx = h[idx][0] ) {
-			Scalar color( 255, 255, 255 );
-			drawContours( image_2, contours, idx, color, CV_FILLED, 8, h );
-		}
-		imshow("Green", thresholdimgG);
-		imshow("Yellow",thresholdimgY);
-		imshow("Blue", thresholdimgB);
-		imshow("Red", thresholdimgR);
-        imshow("image",image_2);
+        Mat image_3=imread("./dip4_3.jpg");
+        Color_detection(image_3);
 
 		ros::spinOnce();
 		waitKey(5);
